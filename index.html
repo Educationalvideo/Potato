@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>DRAMA · GLB Spotlight Reveal</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+
+  <!-- Google model-viewer -->
+  <script type="module" src="https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: #050308 radial-gradient(circle at top, #111 0, #000 65%);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overflow: hidden;
+    }
+
+    body.revealed {
+      background: #020207 radial-gradient(circle at top, #1a1a24 0, #000 70%);
+    }
+
+    .stage {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* MODEL AREA, fades in only when body has .model-on */
+    .viewer-wrap {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 1s ease-in-out;
+      overflow: hidden;
+    }
+
+    body.model-on .viewer-wrap {
+      opacity: 1;
+    }
+
+    model-viewer {
+      width: 100%;
+      height: 100%;
+      background: #000;
+    }
+
+    /* CURTAINS */
+    .curtains {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      display: flex;
+      pointer-events: auto;
+      cursor: crosshair;
+    }
+
+    body.revealed .curtains {
+      pointer-events: none;
+    }
+
+    .curtain-panel {
+      flex: 1;
+      position: relative;
+      transform-origin: center;
+      transform: translateX(0);
+      box-shadow:
+        inset 40px 0 70px rgba(0, 0, 0, 0.7),
+        0 0 40px rgba(0, 0, 0, 0.9);
+    }
+
+    .curtain-left {
+      background: repeating-linear-gradient(
+        90deg,
+        #4d0005 0,
+        #8a000c 10px,
+        #4d0005 20px
+      );
+      border-right: 2px solid rgba(0, 0, 0, 0.6);
+    }
+
+    .curtain-right {
+      background: repeating-linear-gradient(
+        -90deg,
+        #4d0005 0,
+        #a00012 10px,
+        #4d0005 20px
+      );
+      border-left: 2px solid rgba(0, 0, 0, 0.6);
+    }
+
+    /* Choppy, low frame rate opening */
+    body.revealed .curtain-left {
+      animation: curtain-left-open 1.7s steps(14, end) forwards;
+    }
+    body.revealed .curtain-right {
+      animation: curtain-right-open 1.7s steps(14, end) forwards;
+    }
+
+    @keyframes curtain-left-open {
+      to { transform: translateX(-100%); }
+    }
+    @keyframes curtain-right-open {
+      to { transform: translateX(100%); }
+    }
+
+    /* TOP VALANCE */
+    .curtain-top {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 18vh;
+      background: radial-gradient(circle at top, #ff2845 0, #a20015 35%, #4d0005 70%);
+      box-shadow:
+        0 18px 25px rgba(0, 0, 0, 0.85),
+        inset 0 -25px 30px rgba(0, 0, 0, 0.8);
+      z-index: 12;
+      transform-origin: top;
+      transform: translateY(0);
+    }
+
+    body.revealed .curtain-top {
+      animation: curtain-top-open 1.4s steps(12, end) forwards;
+    }
+
+    @keyframes curtain-top-open {
+      to { transform: translateY(-110%); }
+    }
+
+    /* SPOTLIGHT (only over curtains) */
+    .spotlight-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 15;
+      pointer-events: none;
+      --sx: 50%;
+      --sy: 50%;
+      background: radial-gradient(
+        circle at var(--sx) var(--sy),
+        rgba(255, 230, 200, 0.05) 0%,
+        rgba(255, 230, 200, 0.12) 7%,
+        rgba(0, 0, 0, 0.45) 30%,
+        rgba(0, 0, 0, 0.9) 60%,
+        rgba(0, 0, 0, 0.98) 100%
+      );
+      mix-blend-mode: multiply;
+      opacity: 1;
+      transition: opacity 0.6s ease;
+    }
+
+    body.revealed .spotlight-overlay {
+      opacity: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- BACKGROUND MUSIC -->
+  <audio id="bgmusic" src="music.mp3" loop preload="auto"></audio>
+
+  <div class="stage">
+    <div class="viewer-wrap">
+      <model-viewer
+        src="model1.glb"
+        camera-controls
+        autoplay
+        shadow-intensity="1"
+        exposure="1.1"
+        environment-image="neutral"
+        auto-rotate
+        auto-rotate-delay="900"
+      ></model-viewer>
+    </div>
+
+    <div class="curtains" id="curtains">
+      <div class="curtain-top"></div>
+      <div class="curtain-panel curtain-left"></div>
+      <div class="curtain-panel curtain-right"></div>
+      <div class="spotlight-overlay" id="spotlight"></div>
+    </div>
+  </div>
+
+  <script>
+    const body = document.body;
+    const curtains = document.getElementById('curtains');
+    const spotlight = document.getElementById('spotlight');
+    const music = document.getElementById('bgmusic');
+
+    let musicStarted = false;
+
+    function startMusic() {
+      if (musicStarted) return;
+      musicStarted = true;
+
+      music.volume = 0;
+      music.play().catch(() => {});
+
+      // Fade in music
+      let v = 0;
+      const fade = setInterval(() => {
+        v += 0.02;
+        music.volume = Math.min(v, 1);
+        if (v >= 1) clearInterval(fade);
+      }, 120);
+    }
+
+    function reveal() {
+      if (body.classList.contains('revealed')) return;
+
+      body.classList.add('revealed');
+      startMusic();
+
+      // Delay model fade so the music hits first
+      setTimeout(() => {
+        body.classList.add('model-on');
+      }, 1000);
+    }
+
+    function pointerPos(x, y) {
+      const rect = curtains.getBoundingClientRect();
+      const px = (x - rect.left) / rect.width;
+      const py = (y - rect.top) / rect.height;
+
+      const cx = Math.max(0, Math.min(1, px));
+      const cy = Math.max(0, Math.min(1, py));
+
+      spotlight.style.setProperty('--sx', `${cx * 100}%`);
+      spotlight.style.setProperty('--sy', `${cy * 100}%`);
+
+      const dx = cx - 0.5;
+      const dy = cy - 0.5;
+      return Math.hypot(dx, dy);
+    }
+
+    curtains.addEventListener('mousemove', e => {
+      pointerPos(e.clientX, e.clientY);
+    });
+
+    curtains.addEventListener('click', e => {
+      const dist = pointerPos(e.clientX, e.clientY);
+      if (dist < 0.18) reveal();
+    });
+
+    curtains.addEventListener('touchstart', e => {
+      const t = e.touches[0];
+      const dist = pointerPos(t.clientX, t.clientY);
+      if (dist < 0.18) reveal();
+    }, { passive: true });
+
+    window.addEventListener('keydown', e => {
+      if (e.code === 'Space' || e.code === 'Enter') reveal();
+    });
+  </script>
+</body>
+</html>
